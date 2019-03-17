@@ -1,0 +1,5 @@
+{
+    "prettier.eslintIntegration": true,
+    "javascript.format.enable": false,
+    "eslint.enable": true
+}
