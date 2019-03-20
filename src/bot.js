@@ -1,7 +1,6 @@
 const path = require('path')
 const Telegraf = require('telegraf')
 const session = require('telegraf/session')
-const Markup = require('telegraf/markup')
 const Stage = require('telegraf/stage')
 const { enter } = require('telegraf/stage')
 const TelegrafI18n = require('telegraf-i18n')
@@ -20,15 +19,6 @@ const i18n = new TelegrafI18n({
 const token = process.env.BOT_TOKEN
 const bot = new Telegraf(token)
 const stage = new Stage([scenes.ticketCreationFlow, scenes.ticketModerationScene])
-
-stage.command('cancel', ({ scene, reply, i18n }) => {
-  if (Object.keys(scene.state).length !== 0) {
-    reply(i18n.t('cancelled'), Markup.removeKeyboard().extra())
-  } else {
-    reply(i18n.t('nothing_to_cancel'))
-  }
-  scene.leave()
-})
 
 bot.use(
   updateLogger({
