@@ -15,7 +15,7 @@ const sendToDB = async ticket => {
 }
 
 const writeFileFromUrlToStorage = async (ticketId, fileUrl) => {
-  let newId = uuid()
+  let fileId = uuid()
   let options = {
     method: 'GET',
     uri: fileUrl,
@@ -25,7 +25,7 @@ const writeFileFromUrlToStorage = async (ticketId, fileUrl) => {
   let buffer = await rp(options)
   let fileMeta = fileType(buffer)
   let fileStream = bucket
-    .file(`${ticketId}/${newId}.${fileMeta.ext}`)
+    .file(`tickets/${ticketId}/images/${fileId}.${fileMeta.ext}`)
     .createWriteStream({
       metadata: {
         contentType: fileMeta.mime
@@ -34,7 +34,7 @@ const writeFileFromUrlToStorage = async (ticketId, fileUrl) => {
   await fileStream.write(buffer)
   fileStream.end()
   fileStream.on('finish', () => {
-    console.log(`New photos uploaded for ticket: ${newId}!`)
+    console.log(`New photos uploaded for ticket: ${fileId}!`)
   })
 }
 
@@ -70,7 +70,8 @@ ticketCreationFlow.enter(({ scene, from, reply, i18n }) => {
   scene.state.ticket = {}
   scene.state.ticket.userId = from.id
   scene.state.fileUrls = []
-  // TODO: Add creation time
+  scene.state.ticket.timestamp = admin.firestore.Timestamp.now()
+
   return reply(i18n.t('enter_creation'))
 })
 
@@ -117,6 +118,11 @@ ticketCreationFlow.on('location', async ctx => {
   return ctx.reply(ctx.i18n.t('added_location'), ctx.keyboardOptions)
 })
 
+ticketCreationFlow.command('cancel', async ({ scene, i18n }) => {
+  await reply(i18n.t('cancelled'), Markup.removeKeyboard().extra())
+  scene.leave()
+})
+
 //
 // Scene for moderating tickets
 //
@@ -126,8 +132,26 @@ const ticketModerationScene = new Scene('ticketModerationScene')
 ticketModerationScene.enter(reply('enter_mod'))
 ticketModerationScene.leave(reply('leave_mod'))
 ticketModerationScene.help(reply('help_mod'))
-ticketModerationScene.command('list', () => {
-  // TODO: fetch tickets and order by created time
+ticketModerationScene.command('cancel', ({ scene }) => scene.leave())
+ticketModerationScene.command('list', async ({ reply, replyWithPhoto }) => {
+  let list = await tickets
+    .orderBy('timestamp')
+    .limit(3)
+    .get()
+  // TODO: Add inline keyboard for navigating
+  for (let ticket of list.docs) {
+    const images = await bucket.getFiles({
+      prefix: `tickets/${ticket.id}/images`
+    })
+    reply(`Id: ${ticket.id}`)
+    for (let image of images[0]) {
+      await replyWithPhoto({
+        source: image.createReadStream()
+      })
+    }
+    reply(`User: ${ticket.data().userId}`)
+    reply(`Описание: ${ticket.data().desc}`)
+  }
 })
 
 module.exports = {
