@@ -19,15 +19,15 @@ const i18n = new TelegrafI18n({
 
 const token = process.env.BOT_TOKEN
 const bot = new Telegraf(token)
-const stage = new Stage([scenes.ticketCreationFlow])
+const stage = new Stage([scenes.ticketCreationFlow, scenes.ticketModerationScene])
 
 stage.command('cancel', ({ scene, reply, i18n }) => {
   if (Object.keys(scene.state).length !== 0) {
     reply(i18n.t('cancelled'), Markup.removeKeyboard().extra())
-    scene.leave()
   } else {
     reply(i18n.t('nothing_to_cancel'))
   }
+  scene.leave()
 })
 
 bot.use(
@@ -51,7 +51,14 @@ bot.start(({ from, reply, i18n }) => {
 // Show available commands
 bot.help(reply('help'))
 
-// Create new ticket
+// Scenes
 bot.command('add', enter('ticketCreationFlow'))
+bot.command('mod', async ({ from, scene }) => {
+  const user = await users.doc(`${from.id}`).get()
+  const role = user.data().role
+  if (role === 'admin' || role === 'mod') {
+    return scene.enter('ticketModerationScene')
+  }
+})
 
 module.exports = bot

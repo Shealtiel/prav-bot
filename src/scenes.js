@@ -40,7 +40,6 @@ const writeFileFromUrlToStorage = async (ticketId, fileUrl) => {
 
 const showSendButton = ctx => {
   const ticket = ctx.scene.state.ticket
-  console.log(ticket)
   if (ticket.desc && ticket.loc) {
     return Markup.keyboard([ctx.i18n.t('send')])
       .resize()
@@ -50,6 +49,10 @@ const showSendButton = ctx => {
     return Markup.removeKeyboard().extra()
   }
 }
+
+//
+// Scene for creating and sendind tickets
+//
 
 const ticketCreationFlow = new Scene('ticketCreationFlow')
 
@@ -64,15 +67,11 @@ ticketCreationFlow.use((ctx, next) => {
 })
 
 ticketCreationFlow.enter(({ scene, from, reply, i18n }) => {
-  try {
-    scene.state.ticket = {}
-    scene.state.ticket.userId = from.id
-    scene.state.fileUrls = []
-
-    return reply(i18n.t('enter_creation'))
-  } catch (e) {
-    console.log(e)
-  }
+  scene.state.ticket = {}
+  scene.state.ticket.userId = from.id
+  scene.state.fileUrls = []
+  // TODO: Add creation time
+  return reply(i18n.t('enter_creation'))
 })
 
 ticketCreationFlow.help(reply('help_creation'))
@@ -96,7 +95,6 @@ ticketCreationFlow.on(['text', 'edited_message'], ctx => {
     ? ctx.message.text
     : ctx.editedMessage.text
   ctx.keyboardOptions.reply_markup = showSendButton(ctx).reply_markup
-  console.log(ctx.keyboardOptions)
   return ctx.reply(ctx.i18n.t('added_desc'), ctx.keyboardOptions)
 })
 
@@ -119,6 +117,20 @@ ticketCreationFlow.on('location', async ctx => {
   return ctx.reply(ctx.i18n.t('added_location'), ctx.keyboardOptions)
 })
 
+//
+// Scene for moderating tickets
+//
+
+const ticketModerationScene = new Scene('ticketModerationScene')
+
+ticketModerationScene.enter(reply('enter_mod'))
+ticketModerationScene.leave(reply('leave_mod'))
+ticketModerationScene.help(reply('help_mod'))
+ticketModerationScene.command('list', () => {
+  // TODO: fetch tickets and order by created time
+})
+
 module.exports = {
-  ticketCreationFlow
+  ticketCreationFlow,
+  ticketModerationScene
 }

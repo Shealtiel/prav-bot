@@ -30,6 +30,14 @@ added_photo: Добавил фото
 send: Отправить
 sended_ticket: 'Заявка отправлена! id: ${id}'
 
+enter_mod: 'Режим модерации включен'
+leave_mod: 'Режим модерации выключен'
+help_mod: 'TODO'
+
+# 
+# reserved for future releases
+# 
+
 count_tickets: Ты отправил ${counter} заявок!
 no_tickets: 'Ты еще ни о чем не сообщал. Сообщи прямо сейчас: /add!'
 
