@@ -18,7 +18,7 @@ const i18n = new TelegrafI18n({
 
 const token = process.env.BOT_TOKEN
 const bot = new Telegraf(token)
-const stage = new Stage([scenes.ticketCreationFlow, scenes.ticketModerationScene], { ttl: 1800 })
+const stage = new Stage([scenes.ticketCreationFlow], { ttl: 1800 })
 
 bot.use(
   updateLogger({
@@ -31,7 +31,7 @@ bot.use(stage.middleware())
 
 // Show greeting and save user info to firestore /users
 bot.start(({ from, reply, i18n }) => {
-  reply(i18n.t('greeting', { name: from.first_name }))
+  reply(i18n.t('base_greeting', { name: from.first_name }))
   let userId = from.id
   let userInfo = from
   delete userInfo.id
@@ -39,17 +39,9 @@ bot.start(({ from, reply, i18n }) => {
 })
 
 // Show available commands
-bot.help(reply('help'))
+bot.help(reply('base_help'))
 
 // Scenes
 bot.command('add', enter('ticketCreationFlow'))
-
-bot.command('mod', async ({ from, scene }) => {
-  const user = await users.doc(`${from.id}`).get()
-  const role = user.data().role
-  if (role === 'admin' || role === 'mod') {
-    return scene.enter('ticketModerationScene')
-  }
-})
 
 module.exports = bot
