@@ -9,23 +9,27 @@ const { tickets, admin } = require('./init-firebase')
 
 const bucket = admin.storage().bucket()
 
-const sendToDB = async ticket => {
-  let newRef = await tickets.add(ticket)
-  return newRef.id
-}
+const categories = [
+  'green_spaces',
+  'garbage',
+  'road',
+  'sau',
+  'ads',
+  'landscaping'
+]
 
 const writeFileFromUrlToStorage = async (ticketId, fileUrl) => {
-  let fileId = uuid()
-  let options = {
+  const options = {
     method: 'GET',
     uri: fileUrl,
     encoding: null
   }
-
+  let fileId = uuid()
   let buffer = await rp(options)
   let fileMeta = fileType(buffer)
+  const path = `tickets/${ticketId}/images/${fileId}.${fileMeta.ext}`
   let fileStream = bucket
-    .file(`tickets/${ticketId}/images/${fileId}.${fileMeta.ext}`)
+    .file(path)
     .createWriteStream({
       metadata: {
         contentType: fileMeta.mime
@@ -35,23 +39,31 @@ const writeFileFromUrlToStorage = async (ticketId, fileUrl) => {
   fileStream.end()
   fileStream.on('finish', () => {
     console.log(`New photos uploaded for ticket: ${fileId}!`)
+    return path
   })
 }
 
-const showSendButton = ctx => {
-  const ticket = ctx.scene.state.ticket
-  if (ticket.desc && ticket.loc) {
-    return Markup.keyboard([ctx.i18n.t('send')])
-      .resize()
-      .oneTime()
-      .extra()
-  } else {
-    return Markup.removeKeyboard().extra()
+const addButtons = ctx => {
+  if (ctx.scene.ticket.desc && ctx.scene.ticket.loc) {
+    ctx.reply(
+      ctx.i18n.t('request_category'),
+      Markup.keyboard(
+        categories.map(string => {
+          return ctx.i18n.t(string)
+        }),
+        {
+          columns: 3
+        }
+      )
+        .resize()
+        .oneTime()
+        .extra()
+    )
   }
 }
 
 //
-// Scene for creating and sendind tickets
+// Scene for creating and sending tickets
 //
 
 const ticketCreationFlow = new Scene('ticketCreationFlow')
@@ -67,60 +79,68 @@ ticketCreationFlow.use((ctx, next) => {
 })
 
 ticketCreationFlow.enter(({ scene, from, reply, i18n }) => {
-  scene.state.ticket = {}
-  scene.state.ticket.userId = from.id
-  scene.state.fileUrls = []
-  scene.state.ticket.timestamp = admin.firestore.Timestamp.now()
+  scene.ticket = {}
+  scene.ticket.userId = from.id
+  scene.fileUrls = []
+  scene.ticket.timestamp = admin.firestore.Timestamp.now()
 
   return reply(i18n.t('enter_creation'))
+})
+
+ticketCreationFlow.command('cancel', ({ reply, scene, i18n }) => {
+  reply(i18n.t('cancelled'), Markup.removeKeyboard().extra())
+  scene.leave()
 })
 
 ticketCreationFlow.help(reply('help_creation'))
 
 // Send ticket to firestore
-ticketCreationFlow.hears(match('send'), async ({ scene, reply, i18n }) => {
-  let res = await sendToDB(scene.state.ticket)
-  for (let fileUrl of scene.state.fileUrls) {
-    writeFileFromUrlToStorage(res, fileUrl)
-  }
-  scene.leave()
 
-  return reply(
-    i18n.t('sended_ticket', { id: res }),
-    Markup.removeKeyboard().extra()
-  )
-})
+ticketCreationFlow.hears(
+  categories.map(match),
+  async ({ scene, reply, i18n, message }) => {
+    scene.ticket.category = message.text
+
+    let ref = await tickets.add(scene.ticket)
+    for (let fileUrl of scene.fileUrls) {
+      writeFileFromUrlToStorage(ref.id, fileUrl)
+    }
+    scene.leave()
+
+    return reply(
+      i18n.t('sended_ticket', { id: ref.id }),
+      Markup.removeKeyboard().extra()
+    )
+  }
+)
 
 ticketCreationFlow.on(['text', 'edited_message'], ctx => {
-  ctx.scene.state.ticket.desc = ctx.message
+  ctx.scene.ticket.desc = ctx.message
     ? ctx.message.text
     : ctx.editedMessage.text
-  ctx.keyboardOptions.reply_markup = showSendButton(ctx).reply_markup
-  return ctx.reply(ctx.i18n.t('added_desc'), ctx.keyboardOptions)
+
+  ctx.reply(ctx.i18n.t('added_desc'), ctx.keyboardOptions)
+  return addButtons(ctx)
 })
 
 ticketCreationFlow.on('photo', async ctx => {
   const fileUrl = await ctx.telegram.getFileLink(
     ctx.message.photo.pop().file_id
   )
-  ctx.scene.state.fileUrls.push(fileUrl)
-  ctx.keyboardOptions.reply_markup = showSendButton(ctx).reply_markup
-  return ctx.reply(ctx.i18n.t('added_photo'), ctx.keyboardOptions)
+  ctx.scene.fileUrls.push(fileUrl)
+
+  ctx.reply(ctx.i18n.t('added_photo'), ctx.keyboardOptions)
 })
 
 ticketCreationFlow.on('location', async ctx => {
   let newLoc = ctx.message.location
-  ctx.scene.state.ticket.loc = await new admin.firestore.GeoPoint(
+  ctx.scene.ticket.loc = await new admin.firestore.GeoPoint(
     newLoc.latitude,
     newLoc.longitude
   )
-  ctx.keyboardOptions.reply_markup = showSendButton(ctx).reply_markup
-  return ctx.reply(ctx.i18n.t('added_location'), ctx.keyboardOptions)
-})
 
-ticketCreationFlow.command('cancel', async ({ scene, i18n }) => {
-  await reply(i18n.t('cancelled'), Markup.removeKeyboard().extra())
-  scene.leave()
+  ctx.reply(ctx.i18n.t('added_location'), ctx.keyboardOptions)
+  return addButtons(ctx)
 })
 
 //

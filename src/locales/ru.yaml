@@ -27,6 +27,7 @@ help_creation: |
 added_desc: Записал описание
 added_location: Записал местоположение
 added_photo: Добавил фото
+request_category: Чтобы отправить заявку выбери категорию
 send: Отправить
 sended_ticket: 'Заявка отправлена! id: ${id}'
 
@@ -38,13 +39,13 @@ help_mod: 'TODO'
 # reserved for future releases
 # 
 
-count_tickets: Ты отправил ${counter} заявок!
-no_tickets: 'Ты еще ни о чем не сообщал. Сообщи прямо сейчас: /add!'
+tickets_count: Ты отправил ${counter} заявок!
+tickets_no: 'Ты еще ни о чем не сообщал. Сообщи прямо сейчас: /add!'
 
-categories:
-  green_spaces: Зеленые насаждения
-  garbage: Мусор
-  road: Дороги
-  sau: ЖКХ
-  ads: Реклама
-  landscaping: Благоустройство
+
+green_spaces: Зеленые насаждения
+garbage: Мусор
+road: Дороги
+sau: ЖКХ
+ads: Реклама
+landscaping: Благоустройство
