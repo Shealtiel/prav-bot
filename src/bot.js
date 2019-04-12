@@ -18,7 +18,7 @@ const i18n = new TelegrafI18n({
 
 const token = process.env.BOT_TOKEN
 const bot = new Telegraf(token)
-const stage = new Stage([scenes.ticketCreationFlow, scenes.ticketModerationScene])
+const stage = new Stage([scenes.ticketCreationFlow, scenes.ticketModerationScene], { ttl: 1800 })
 
 bot.use(
   updateLogger({
@@ -43,6 +43,7 @@ bot.help(reply('help'))
 
 // Scenes
 bot.command('add', enter('ticketCreationFlow'))
+
 bot.command('mod', async ({ from, scene }) => {
   const user = await users.doc(`${from.id}`).get()
   const role = user.data().role
