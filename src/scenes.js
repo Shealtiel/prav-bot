@@ -75,7 +75,7 @@ ticketCreationFlow.enter(({ scene, from, reply, i18n }) => {
   scene.state.fileUrls = []
   scene.state.ticket.timestamp = admin.firestore.Timestamp.now()
 
-  return reply(i18n.t('creation_enter'))
+  reply(i18n.t('creation_enter'))
 })
 
 ticketCreationFlow.command('cancel', ({ reply, scene, i18n }) => {
@@ -97,7 +97,7 @@ ticketCreationFlow.hears(
     }
     scene.leave()
 
-    return reply(
+    reply(
       i18n.t('creation_sended', { id: ref.id }),
       Markup.removeKeyboard().extra()
     )
@@ -110,7 +110,7 @@ ticketCreationFlow.on(['text', 'edited_message'], ctx => {
     : ctx.editedMessage.text
 
   ctx.reply(ctx.i18n.t('creation_add'), ctx.keyboardOptions)
-  return addButtons(ctx)
+  addButtons(ctx)
 })
 
 ticketCreationFlow.on('photo', async ctx => {
@@ -120,6 +120,7 @@ ticketCreationFlow.on('photo', async ctx => {
   ctx.scene.state.fileUrls.push(fileUrl)
 
   ctx.reply(ctx.i18n.t('creation_add'), ctx.keyboardOptions)
+  addButtons(ctx)
 })
 
 ticketCreationFlow.on('location', async ctx => {
@@ -130,7 +131,7 @@ ticketCreationFlow.on('location', async ctx => {
   )
 
   ctx.reply(ctx.i18n.t('creation_add'), ctx.keyboardOptions)
-  return addButtons(ctx)
+  addButtons(ctx)
 })
 
 module.exports = {

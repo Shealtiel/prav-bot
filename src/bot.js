@@ -31,11 +31,12 @@ bot.use(stage.middleware())
 
 // Show greeting and save user info to firestore /users
 bot.start(({ from, reply, i18n }) => {
-  reply(i18n.t('base_greeting', { name: from.first_name }))
   let userId = from.id
   let userInfo = from
   delete userInfo.id
   users.doc(`${userId}`).set(userInfo)
+
+  reply(i18n.t('base_greeting', { name: from.first_name }))
 })
 
 // Show available commands
