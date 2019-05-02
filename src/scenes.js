@@ -3,7 +3,7 @@ const fileType = require('file-type')
 const rp = require('request-promise')
 const Scene = require('telegraf/scenes/base')
 const Markup = require('telegraf/markup')
-const { match, reply } = require('telegraf-i18n')
+const { match } = require('telegraf-i18n')
 
 const { tickets, admin } = require('./init-firebase')
 const bucket = admin.storage().bucket()
@@ -53,21 +53,20 @@ const addButtons = ctx => {
   }
 }
 
+function addReply (ctx) {
+  const messageId = ctx.message
+    ? ctx.message.message_id
+    : ctx.editedMessage.message_id
+  return {
+    reply_to_message_id: messageId
+  }
+}
+
 //
 // Scene for creating and sending tickets
 //
 
 const ticketCreationFlow = new Scene('ticketCreationFlow')
-
-ticketCreationFlow.use((ctx, next) => {
-  const messageId = ctx.message
-    ? ctx.message.message_id
-    : ctx.editedMessage.message_id
-  ctx.keyboardOptions = {
-    reply_to_message_id: messageId
-  }
-  next()
-})
 
 ticketCreationFlow.enter(({ scene, from, reply, i18n }) => {
   scene.state.ticket = {}
@@ -75,15 +74,15 @@ ticketCreationFlow.enter(({ scene, from, reply, i18n }) => {
   scene.state.fileUrls = []
   scene.state.ticket.timestamp = admin.firestore.Timestamp.now()
 
-  reply(i18n.t('creation_enter'))
+  return reply(i18n.t('creation_enter'))
 })
 
 ticketCreationFlow.command('cancel', ({ reply, scene, i18n }) => {
-  reply(i18n.t('creation_leave'), Markup.removeKeyboard().extra())
   scene.leave()
+  return reply(i18n.t('creation_leave'), Markup.removeKeyboard().extra())
 })
 
-ticketCreationFlow.help(reply('creation_help'))
+ticketCreationFlow.command('help', ({ reply, i18n }) => reply(i18n.t('creation_help')))
 
 // Send ticket to firestore
 ticketCreationFlow.hears(
@@ -97,41 +96,41 @@ ticketCreationFlow.hears(
     }
     scene.leave()
 
-    reply(
+    return reply(
       i18n.t('creation_sended', { id: ref.id }),
       Markup.removeKeyboard().extra()
     )
   }
 )
 
-ticketCreationFlow.on(['text', 'edited_message'], ctx => {
+ticketCreationFlow.on(['text', 'edited_message'], (ctx) => {
   ctx.scene.state.ticket.desc = ctx.message
     ? ctx.message.text
     : ctx.editedMessage.text
 
-  ctx.reply(ctx.i18n.t('creation_add'), ctx.keyboardOptions)
   addButtons(ctx)
+  return ctx.reply(ctx.i18n.t('creation_add'), addReply(ctx))
 })
 
-ticketCreationFlow.on('photo', async ctx => {
+ticketCreationFlow.on('photo', async (ctx) => {
   const fileUrl = await ctx.telegram.getFileLink(
     ctx.message.photo.pop().file_id
   )
   ctx.scene.state.fileUrls.push(fileUrl)
 
-  ctx.reply(ctx.i18n.t('creation_add'), ctx.keyboardOptions)
   addButtons(ctx)
+  return ctx.reply(ctx.i18n.t('creation_add'), addReply(ctx))
 })
 
-ticketCreationFlow.on('location', async ctx => {
+ticketCreationFlow.on('location', async (ctx) => {
   let newLoc = ctx.message.location
   ctx.scene.state.ticket.loc = await new admin.firestore.GeoPoint(
     newLoc.latitude,
     newLoc.longitude
   )
 
-  ctx.reply(ctx.i18n.t('creation_add'), ctx.keyboardOptions)
   addButtons(ctx)
+  return ctx.reply(ctx.i18n.t('creation_add'), addReply(ctx))
 })
 
 module.exports = {

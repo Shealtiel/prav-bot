@@ -17,8 +17,12 @@ const i18n = new TelegrafI18n({
 })
 
 const token = process.env.BOT_TOKEN
-const bot = new Telegraf(token)
-const stage = new Stage([scenes.ticketCreationFlow], { ttl: 1800 })
+const bot = new Telegraf(token, {
+  telegram: {
+    webhookReply: true
+  }
+})
+const stage = new Stage([scenes.ticketCreationFlow])
 
 bot.use(
   updateLogger({

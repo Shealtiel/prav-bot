@@ -1,8 +1,8 @@
-const express = require('express')
+// const express = require('express')
 const bot = require('./bot')
 
 const env = process.env.NODE_ENV
-const app = express()
+// const app = express()
 
 // Use webhooks for 'production' and pooling for 'dev'
 if (env === 'production') {
@@ -10,12 +10,14 @@ if (env === 'production') {
   const secretUrl = process.env.BOT_TOKEN
   const projectId = process.env.GOOGLE_CLOUD_PROJECT
 
-  app.use(bot.webhookCallback(`/${secretUrl}`))
-  app.get(`/${secretUrl}`, (_req, res) => res.send(200))
-  app.listen(port, () => {
-    console.log(`Server listening on port ${port}...`)
-  })
+  // app.use(bot.webhookCallback(`/${secretUrl}`))
   bot.telegram.setWebhook(`https://${projectId}.appspot.com/${secretUrl}`)
+
+  // app.get(`/${secretUrl}`, (_req, res) => res.send(200))
+  // app.listen(port, () => {
+  //   console.log(`Server listening on port ${port}...`)
+  // })
+  bot.startWebhook(`/${secretUrl}`, null, port)
 } else {
   bot.startPolling()
 }
