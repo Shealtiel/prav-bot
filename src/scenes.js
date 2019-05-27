@@ -13,7 +13,8 @@ const categories = [
   'category_road',
   'category_sau',
   'category_ads',
-  'category_landscaping'
+  'category_landscaping',
+  'category_other'
 ]
 
 const writeFileFromUrlToStorage = async (ticketId, fileUrl) => {
@@ -40,7 +41,11 @@ const writeFileFromUrlToStorage = async (ticketId, fileUrl) => {
 }
 
 const addButtons = ctx => {
-  if (ctx.scene.state.ticket.desc && ctx.scene.state.ticket.loc) {
+  if (
+    ctx.scene.state.ticket.desc &&
+    ctx.scene.state.ticket.loc &&
+    ctx.scene.state.fileUrls[0]
+  ) {
     ctx.reply(
       ctx.i18n.t('creation_request_category'),
       Markup.keyboard(categories.map(string => ctx.i18n.t(string)), {
@@ -62,6 +67,25 @@ function addReply (ctx) {
   }
 }
 
+const sendTicketToFirestore = async ctx => {
+  if (
+    ctx.scene.state.ticket.desc &&
+    ctx.scene.state.ticket.loc &&
+    ctx.scene.state.fileUrls[0]
+  ) {
+    let ref = await tickets.add(ctx.scene.state.ticket)
+    for (let fileUrl of ctx.scene.state.fileUrls) {
+      writeFileFromUrlToStorage(ref.id, fileUrl)
+    }
+    ctx.scene.leave()
+
+    return ctx.reply(
+      ctx.i18n.t('creation_sended', { id: ref.id }),
+      Markup.removeKeyboard().extra()
+    )
+  }
+}
+
 //
 // Scene for creating and sending tickets
 //
@@ -70,6 +94,7 @@ const ticketCreationFlow = new Scene('ticketCreationFlow')
 
 ticketCreationFlow.enter(({ scene, from, reply, i18n }) => {
   scene.state.ticket = {}
+  scene.state.ticket.status = 'new'
   scene.state.ticket.userId = from.id
   scene.state.fileUrls = []
   scene.state.ticket.timestamp = admin.firestore.Timestamp.now()
@@ -82,28 +107,48 @@ ticketCreationFlow.command('cancel', ({ reply, scene, i18n }) => {
   return reply(i18n.t('creation_leave'), Markup.removeKeyboard().extra())
 })
 
-ticketCreationFlow.command('help', ({ reply, i18n }) => reply(i18n.t('creation_help')))
-
-// Send ticket to firestore
-ticketCreationFlow.hears(
-  categories.map(match),
-  async ({ scene, reply, i18n, message }) => {
-    scene.state.ticket.category = message.text
-
-    let ref = await tickets.add(scene.state.ticket)
-    for (let fileUrl of scene.state.fileUrls) {
-      writeFileFromUrlToStorage(ref.id, fileUrl)
-    }
-    scene.leave()
-
-    return reply(
-      i18n.t('creation_sended', { id: ref.id }),
-      Markup.removeKeyboard().extra()
-    )
-  }
+ticketCreationFlow.command('help', ({ reply, i18n }) =>
+  reply(i18n.t('creation_help'))
 )
 
-ticketCreationFlow.on(['text', 'edited_message'], (ctx) => {
+// Send ticket to firestore
+// TODO: Need refactor!
+ticketCreationFlow.hears(match('category_green_spaces'), ctx => {
+  ctx.scene.state.ticket.category = 'green_spaces'
+  return sendTicketToFirestore(ctx)
+})
+
+ticketCreationFlow.hears(match('category_other'), ctx => {
+  ctx.scene.state.ticket.category = 'other'
+  return sendTicketToFirestore(ctx)
+})
+
+ticketCreationFlow.hears(match('category_garbage'), ctx => {
+  ctx.scene.state.ticket.category = 'garbage'
+  return sendTicketToFirestore(ctx)
+})
+
+ticketCreationFlow.hears(match('category_ads'), ctx => {
+  ctx.scene.state.ticket.category = 'ads'
+  return sendTicketToFirestore(ctx)
+})
+
+ticketCreationFlow.hears(match('category_landscaping'), ctx => {
+  ctx.scene.state.ticket.category = 'landscaping'
+  return sendTicketToFirestore(ctx)
+})
+
+ticketCreationFlow.hears(match('category_road'), ctx => {
+  ctx.scene.state.ticket.category = 'road'
+  return sendTicketToFirestore(ctx)
+})
+
+ticketCreationFlow.hears(match('category_sau'), ctx => {
+  ctx.scene.state.ticket.category = 'sau'
+  return sendTicketToFirestore(ctx)
+})
+
+ticketCreationFlow.on(['text', 'edited_message'], ctx => {
   ctx.scene.state.ticket.desc = ctx.message
     ? ctx.message.text
     : ctx.editedMessage.text
@@ -112,7 +157,7 @@ ticketCreationFlow.on(['text', 'edited_message'], (ctx) => {
   return ctx.reply(ctx.i18n.t('creation_add'), addReply(ctx))
 })
 
-ticketCreationFlow.on('photo', async (ctx) => {
+ticketCreationFlow.on('photo', async ctx => {
   const fileUrl = await ctx.telegram.getFileLink(
     ctx.message.photo.pop().file_id
   )
@@ -122,7 +167,7 @@ ticketCreationFlow.on('photo', async (ctx) => {
   return ctx.reply(ctx.i18n.t('creation_add'), addReply(ctx))
 })
 
-ticketCreationFlow.on('location', async (ctx) => {
+ticketCreationFlow.on('location', async ctx => {
   let newLoc = ctx.message.location
   ctx.scene.state.ticket.loc = await new admin.firestore.GeoPoint(
     newLoc.latitude,
